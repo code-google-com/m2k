@@ -1,5 +1,5 @@
  * Put the .mll into your Maya's plugin folders,
- * Create your particle shape in Maya scene, remember its name, e.g, *ParticleShape1*,
+ * Create your particle shape in Maya scene, remember its name, e.g, {{{ ParticleShape1 }}},
  * Input MEL script in your opened script window like this,
    {{{ m2k "F:/Particles_01.prt" "ParticleShape1" }}}
  ** You could write your own GUI script to output the all data one frame by another frames.
