@@ -22,11 +22,12 @@
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#include "PRT.h"
 
 #include <boost/scoped_array.hpp>
 #include <iostream>
 #include <zlib.h>
+
+#include "PRT.h"
 
 using namespace std;
 
