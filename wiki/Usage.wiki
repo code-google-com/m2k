@@ -1,5 +1,8 @@
- * Put the .mll into your Maya's plugin folders,
+ * Put the zlib{32|64}.dll into your *%SYSTEMROOT%\System* or *%SYSTEMROOT%\System\SysWOW64*
+ * Put the *m2k.mll* into your Maya's plugin folders,
  * Create your particle shape in Maya scene, remember its name, e.g, {{{ ParticleShape1 }}},
  * Input MEL script in your opened script window like this,
-   {{{ m2k "F:/Particles_01.prt" "ParticleShape1" }}}
- ** You could write your own GUI script to output the all data one frame by another frames.
+   {{{ m2k "F:/Particles_01.prt" "ParticleShape1" "position" "myattribute i 3" }}}
+ ** Current version supports export user-defined attributes if the data could be found in the MFnParticleShape node. The format should be
+{{{ name type num }}} if there is one attribute named *MyMagicColor*, its data type is float3, you should write {{{ MyMagicColor f 3 }}}. It's very easy.
+ * You could write your own GUI script to output the all data one frame by another frames.
