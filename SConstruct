@@ -3,8 +3,11 @@
 #
 # Please modify the path related to your configuration.
 #
-# WARNING : For Windows Only now ! Please install Python 2.5 (or newer) and scons to compile me in Visual Studio command prompt.
+# WARNING : For Windows Only now ! Please install Python 2.5 (or newer) and SCons 
+# to compile me in Visual Studio command prompt.
 ######################################################
+
+print "M2K SCons Build Script\nWARNING : You should run this under Visual Studio prompt\n\n"
 
 import os
 
@@ -14,25 +17,29 @@ Env['ENV']['LIB'] = os.environ['LIB']
 Env['ENV']['INCLUDE'] = os.environ['INCLUDE']
 
 ######################################################
+# Compiler parameters for different OS and different Maya
 
-CompilerDefines = '/DWIN32 /D_WIN32 /DUNICODE /D_UNICODE /DNT_PLUGIN /DREQUIRE_IOSTREAM /EHa /MD '
+W32M32CP = '/DWIN32 /D_WIN32 /DUNICODE /D_UNICODE /DNT_PLUGIN /DREQUIRE_IOSTREAM /EHa /MD /Wp64 /nologo'
+W64M32CP = '/DWIN64 /D_WIN64 /DUNICODE /D_UNICODE /DNT_PLUGIN /DREQUIRE_IOSTREAM /EHa /MD /Wp64 /nologo'
 
 ######################################################
 
-BOOSTPath = Dir('C:/boost/boost_1_39_0')
+BoostPath = os.environ['BOOST_ROOT']
+if( BoostPath == '' ) :
+	print "ERROR : Can't found system variable BOOST_ROOT, you must setup it."
 
-MayaIncPath = Dir('C:/Program Files/Autodesk/Maya2009/include')
-MayaLibPath = Dir('C:/Program Files/Autodesk/Maya2009/lib')
+MayaIncPath = Dir('C:/Program Files (x86)/Autodesk/Maya2008/include')
+MayaLibPath = Dir('C:/Program Files (x86)/Autodesk/Maya2008/lib')
 
 ZLIBIncPath = Dir('E:/SDK/Inc')
-ZLIBLibPath = Dir('E:/SDK/Lib/X64')
+ZLIBLibPath = Dir('E:/SDK/Lib/X86')
 
-ZLIBLibTarget = 'zlib64'
+ZLIBLibTarget = 'zlib32'
 
 ######################################################
 
 IncPath = []
-IncPath.append(BOOSTPath)
+IncPath.append(BoostPath)
 IncPath.append(MayaIncPath)
 IncPath.append(ZLIBIncPath)
 
@@ -46,4 +53,4 @@ Libs = ['Foundation', 'OpenMaya', 'OpenMayaFX', ZLIBLibTarget]
 
 SourceFiles = ['M2K.cpp','PRT.cpp']
 
-Env.SharedLibrary(target='M2K', SHLIBSUFFIX='.mll', source=SourceFiles, CPPPATH = IncPath, LIBPATH = LibPath, LIBS = Libs, CCFLAGS = CompilerDefines)
+Env.SharedLibrary(target='M2K', SHLIBSUFFIX='.mll', source=SourceFiles, CPPPATH = IncPath, LIBPATH = LibPath, LIBS = Libs, CCFLAGS = W32M32CP)
