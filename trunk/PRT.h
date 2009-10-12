@@ -57,25 +57,27 @@ public:
 	Array Data;
 };
 
+typedef std::map<std::string, PRTChannel> PRTChannelDict;
+
 class PRT
 {
 public:
-	PRT(const long long Count = 0) : mCount(Count)
-	{
-	}
-	~PRT()
-	{
-	}
 	
-	void AddChannel(const std::string&, const DataType, const int, const Array&);
+	PRT(const long long Count = 0);
+	~PRT();
 	
 	bool SaveToFile(const char*);
-
-	//Have Not Implemented Yet
 	bool ReadFromFile(const char*);
+
+	void AddChannel(const std::string&, const DataType, const int, const Array&);
+	void GetChannels(PRTChannelDict&) const;
+	long long GetCount() const;
+
+	void Clear();
+
 private:
 	long long mCount;
-	std::map<std::string, PRTChannel> mCh;
+	PRTChannelDict mCh;
 };
 
 #endif
