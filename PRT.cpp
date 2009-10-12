@@ -152,7 +152,7 @@ bool PRT::SaveToFile(const char* Path)
 		}
 
 		//Write channels information
-		int ChanNumer = 4;
+		int ChanNumer = mCh.size();
 		fwrite(&ChanNumer,sizeof(int),1,FP);
 		int ChanLen = 44;
 		fwrite(&ChanLen,sizeof(int),1,FP);
@@ -190,4 +190,154 @@ bool PRT::SaveToFile(const char* Path)
 	}
 	
 	return true;
+}
+
+bool PRT::ReadFromFile(const char * Path)
+{
+	FILE* FP = fopen(Path,"rb");
+	if( FP == NULL )
+	{
+		cerr<<"e@fopen"<<endl;
+		return false;
+	}
+
+	Header H;
+	memset(&H,0,sizeof(Header));
+
+	fread(&H,sizeof(Header),1,FP);
+
+	if( strncmp(H.Signature,"Extensible Particle Format",31) != 0 )
+		return false;
+
+	if( H.Len != 56  )
+		return false;
+
+	if( H.Version != 1 )
+		return false;
+
+	int REVERSED = 0;
+	fread(&REVERSED,sizeof(int),1,FP);
+
+	if( REVERSED != 4 ) 
+		return false;
+
+	int ChDef[2] = {0,0};
+	fread(&ChDef[0],sizeof(int)*2,1,FP);
+	if( ChDef[0] == 0 || ChDef[1] != 44 )
+		return false;
+
+	const int ChCount = ChDef[0];
+
+	try
+	{
+		boost::scoped_array<Channel> Channels(new Channel[ChCount]);
+		memset(Channels.get(),0,sizeof(Channel)*ChCount);
+		fread(Channels.get(),sizeof(Channel),ChCount,FP);
+
+		size_t SingleSize = 0;
+		for( int i=0; i<ChDef[0]; ++i )
+		{
+			DataType CurrDT = (DataType)Channels[i].DataType;
+			if( CurrDT == kINT32 || CurrDT == kFLOAT32 || CurrDT == kUINT32 )
+			{
+				PRTChannel Ch;
+				Ch.Arity = Channels[i].Arity;
+				Ch.Data.reset(new char[H.Count*4*Ch.Arity]);
+				Ch.DT = CurrDT;
+				mCh.insert( make_pair(Channels[i].Name,Ch) );
+				SingleSize += 4*Ch.Arity;
+			}
+			else
+			{
+				PRTChannel Ch;
+				Ch.Arity = Channels[i].Arity;
+				Ch.Data.reset(new char[H.Count*8*Ch.Arity]);
+				Ch.DT = CurrDT;
+				mCh.insert( make_pair(Channels[i].Name,Ch) );
+
+				SingleSize += 8*Ch.Arity;
+			}
+		}
+
+		if( SingleSize == 0 )
+			return false;
+
+		
+		long CurrFilePos = ftell(FP);
+		fseek(FP,0,SEEK_END);
+		unsigned long ZSrcLen = ftell(FP) - CurrFilePos;
+		fseek(FP,CurrFilePos,SEEK_SET);
+
+		boost::scoped_array<Bytef> ZSrc(new Bytef[ZSrcLen]);
+		fread(ZSrc.get(),ZSrcLen,1,FP);
+
+		uLongf ZDstLen = SingleSize*H.Count;
+		boost::scoped_array<Bytef> ZDst(new Bytef[ZDstLen]);
+
+		int ZE = uncompress(ZDst.get(),&ZDstLen,ZSrc.get(),ZSrcLen);
+
+		if( ZE != Z_OK )
+			return false;
+
+		//int R = uncompress(WholeBuf.get(),SingleSize*H.Count,
+
+		int AccOffset = 0;
+		int mChIdx = 0;
+		char* WholePointer = (char*)ZDst.get();
+		for( PRTChannelDict::iterator itr = mCh.begin(); itr != mCh.end(); ++itr )
+		{
+			DataType CurrDT = (DataType)itr->second.DT;
+						
+			int Size = 0;
+
+			if( CurrDT == kINT32 || CurrDT == kFLOAT32 || CurrDT == kUINT32 )
+				Size = 4*itr->second.Arity;
+			else
+				Size = 8*itr->second.Arity;
+
+			AccOffset += mChIdx*Size;
+
+			char* RawPointer = itr->second.Data.get();
+			for( long long int n=0; n<H.Count; ++n )
+			{
+				long long int m = n*Size;
+				memcpy( RawPointer+n*Size, WholePointer+SingleSize*n+AccOffset, Size );
+			}
+
+			++mChIdx;
+		}
+
+		mCount = H.Count;
+	}
+	catch(...)
+	{
+		return false;
+	}
+	return true;
+}
+
+
+
+void PRT::Clear()
+{
+	mCount = 0;
+	mCh.clear();
+}
+
+void PRT::GetChannels(PRTChannelDict& Dict) const
+{
+	Dict = mCh;
+}
+
+long long PRT::GetCount() const
+{
+	return mCount;
+}
+
+PRT::PRT(const long long Count) : mCount(Count)
+{
+}
+
+PRT::~PRT()
+{
 }

@@ -39,6 +39,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <fstream>
 #include <sstream>
 #include <zlib.h>
 
@@ -111,7 +112,7 @@ MStatus M2K::doIt(const MArgList& Args)
 
 				//Remember to release memory.
 				VA.setLength(0);
-			}else 	if( AttrName == "acceleration" )
+			}else if( AttrName == "acceleration" )
 			{
 				MVectorArray VA;
 				PS.acceleration( VA );
@@ -141,6 +142,20 @@ MStatus M2K::doIt(const MArgList& Args)
 				DA.setLength(0);
 			}else if( AttrName == "velocity" )
 			{
+				MVectorArray VA;
+				PS.velocity(VA);
+				Array RawArray( new char[sizeof(float)*Count*3] );
+				float* p = (float*)RawArray.get();
+				for( unsigned int a=0; a<Count; ++a )
+				{
+					unsigned int b = a*3;
+					MVector P = VA[a];
+					p[b+0] = (float)P.x;
+					p[b+1] = (float)P.y;
+					p[b+2] = (float)P.z;
+				}
+				PRTFile->AddChannel("Velocity",kFLOAT32,3,RawArray);
+				VA.setLength(0);
 			}else if( AttrName == "id" )
 			{
 				MIntArray IA;
@@ -157,6 +172,7 @@ MStatus M2K::doIt(const MArgList& Args)
 			{
 				MDoubleArray DA;
 				PS.age( DA );
+
 				Array RawArray( new char[sizeof(float)*Count] );
 				float* p = (float*)RawArray.get();
 				for( unsigned int a=0; a<Count; ++a )
@@ -164,11 +180,13 @@ MStatus M2K::doIt(const MArgList& Args)
 					p[a] = (float)DA[a];
 				}
 				PRTFile->AddChannel("Age",kFLOAT32,1,RawArray);
+
 				DA.setLength(0);
 			}else if( AttrName == "opacity" )
 			{
 				MDoubleArray DA;
 				PS.opacity( DA );
+
 				Array RawArray( new char[sizeof(float)*Count] );
 				float* p = (float*)RawArray.get();
 				for( unsigned int a=0; a<Count; ++a )
@@ -176,8 +194,12 @@ MStatus M2K::doIt(const MArgList& Args)
 					p[a] = (float)DA[a];
 				}
 				PRTFile->AddChannel("Opacity",kFLOAT32,1,RawArray);
+
 				DA.setLength(0);
-			}else
+			}else if( AttrName ==  "color" )
+			{
+			}
+			else
 			{
 				//User's self-defined attributes.
 				istringstream ISS( AttrName );
@@ -248,7 +270,6 @@ MStatus M2K::doIt(const MArgList& Args)
 							p[b+2] = (float)P.z;
 						}
 						PRTFile->AddChannel(RealName,kFLOAT32,3,RawArray);
-						VA.setLength(0);
 					}
 					VA.setLength(0);
 				}
@@ -257,8 +278,17 @@ MStatus M2K::doIt(const MArgList& Args)
 
 		PRTFile->SaveToFile( Path.asChar() );
 
-	}catch(...)
+	}
+	catch(const exception& e)
 	{
+		MString Info("M2K caught an C++ exception : ");
+		Info += e.what();
+		MGlobal::displayError(Info);
+		return MStatus::kFailure;
+	}
+	catch(...)
+	{
+		MGlobal::displayError("M2K caught an UNKNOWN exception");
 		return MStatus::kFailure;
 	}
 
