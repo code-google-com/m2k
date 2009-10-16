@@ -1,4 +1,4 @@
-#include <iostream>
+﻿#include <iostream>
 
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_qrng.h>
@@ -19,7 +19,15 @@ DiffusionParticleResolver::~DiffusionParticleResolver()
 
 RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], RtPointer Data[])
 {
-	RiPointsV(NVerts,N,Tokens,Data);
+	const int NCopies = mNCopies;
+	const int Falloff = mFalloff;
+
+	// We do not need to do anything.
+	if( NCopies == 0 )
+	{
+		RiPointsV(NVerts,N,Tokens,Data);
+		return;
+	}
 }
 
 void DiffusionParticleResolver::SetNCopies(const RtInt& NCopies)
