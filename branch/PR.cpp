@@ -7,6 +7,9 @@ using namespace std;
 
 #define PRTYPE "PRType"
 #define NCOPIES "NCopies"
+#define RANDPATTERN "RandPattern"
+#define PATH "Path"
+#define PARAMETERS "Parameters"
 
 RifPlugin* RifPluginManufacture(int argc, char **argv)
 {
@@ -36,6 +39,10 @@ RtVoid ParticleResolverPlugin::AttributeV(RtToken Name, RtInt N, RtToken Tokens[
 					cout<<"ParticleResolverPlugin : Using DiffusionParticleResolver"<<endl;
 					Instance.reset( new DiffusionParticleResolver );
 					break;
+				case 3:
+					cout<<"ParticleResolverPlugin : Using ExternalParticleResolver"<<endl;
+					Instance.reset( new ExternalParticleResolver );
+					break;
 				}
 			}else if( strstr(Tokens[i],NCOPIES) )
 			{
@@ -47,7 +54,19 @@ RtVoid ParticleResolverPlugin::AttributeV(RtToken Name, RtInt N, RtToken Tokens[
 					cout<<"ParticleResolverPlugin : NCopies ["<< NCopies <<"]"<<endl;
 				}else
 				{
-					cerr<<"ParticleResolverPlugin : Only DiffusionParticleResolver Use ["<<NCOPIES<<"]"<<endl;
+					cerr<<"ParticleResolverPlugin : Only DiffusionParticleResolver Use Attribute ["<<NCOPIES<<"]."<<endl;
+				}
+			}else if( strstr(Tokens[i],RANDPATTERN) )
+			{
+				int RandPattern = *(int*)Data[0];
+				DiffusionParticleResolver* p = dynamic_cast<DiffusionParticleResolver*>( Instance.get() );
+				if( p )
+				{
+					p->SetRandPattern(RandPattern);
+					cout<<"ParticleResolverPlugin : RandPattern ["<< RandPattern <<"]"<<endl;
+				}else
+				{
+					cerr<<"ParticleResolverPlugin : Only DiffusionParticleResolver Use Attribute ["<<RANDPATTERN<<"]."<<endl;
 				}
 			}
 		}
@@ -58,6 +77,7 @@ RtVoid ParticleResolverPlugin::AttributeV(RtToken Name, RtInt N, RtToken Tokens[
 RtVoid ParticleResolverPlugin::PointsV(RtInt NVerts, RtInt N, RtToken Tokens[], RtPointer Data[])
 {
 	Instance->DoIt(NVerts,N,Tokens,Data);
+	Instance.reset( new OriginParticleResolver );
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -2,6 +2,7 @@
 #define PR_H
 
 #include <memory>
+#include <string>
 
 #include <RifPlugin.h>
 
@@ -26,13 +27,28 @@ public:
 	DiffusionParticleResolver();
 	~DiffusionParticleResolver();
 
+	void SetRandPattern(const RtInt&);
 	void SetNCopies(const RtInt&);
 	void SetFalloff(const RtInt&);
 
 	RtVoid DoIt(RtInt, RtInt, RtToken [], RtPointer []);
 private:
-	RtInt mNCopies;
 	RtInt mFalloff;
+	RtInt mNCopies;
+	RtInt mRandPattern;
+};
+
+class ExternalParticleResolver : public ParticleResolver
+{
+public:
+	ExternalParticleResolver();
+	~ExternalParticleResolver();
+
+	void SetPath(const char*);
+
+	RtVoid DoIt(RtInt, RtInt, RtToken [], RtPointer []);
+private:
+	std::string mPath;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
