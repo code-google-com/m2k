@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include <boost/function.hpp>
+#include <boost/scoped_array.hpp>
 
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_qrng.h>
@@ -17,8 +18,12 @@ using namespace std;
 
 #define POSITION "P"
 #define CONSTANTWIDTH "constantwidth"
-#define COLOR "color"
-#define OPACITY "opacity"
+#define COLOR "Cs"
+#define OPACITY "Os"
+
+static float ConstWidth = 0.16666666f;
+static RtColor ConstColor = {1.0f, 0.0f, 0.0f};
+static RtColor ConstOpacity = {1.0f, 1.0f, 1.0f};
 
 struct float3
 {
@@ -47,9 +52,6 @@ void CubeToSphere(float3& P)
 
 void CartesianCoordToSphericalCoord(const float3& XYZ, float3& RTP)
 {
-	//RTP.x = sqrtf( XYZ.x*XYZ.x + XYZ.y*XYZ.y + XYZ.z*XYZ.z );
-	//RTP.y = atan2f(XYZ.y,XYZ.z);
-	//RTP.z = acos( XYZ.z / RTP.x );
 	RTP.x = sqrtf( XYZ.x*XYZ.x + XYZ.y*XYZ.y + XYZ.z*XYZ.z );
 	if( XYZ.x > 0 )
 	{
@@ -150,8 +152,11 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 		return;
 	}
 
-	bool FoundPosition = false;
+	bool FoundPosition = false, FoundConstWidth = false, FoundColor = false, FoundOpacity = false;
 	RtPoint* PositionPointer = NULL;
+	RtFloat* ConstWidthPointer = NULL;
+	RtColor* CsPointer = NULL;
+	RtColor* OsPointer = NULL;
 	for( int i=0; i<N; ++i )
 	{
 		if( strcmp(Tokens[i],POSITION) == 0 )
@@ -159,6 +164,21 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 			cout<<"ParticleResolverPlugin : DiffusionParticleResolver Found Attribute ["<<POSITION<<"]"<<endl;
 			FoundPosition = true;
 			PositionPointer = (RtPoint*)Data[i];
+		}else if( strcmp(Tokens[i],CONSTANTWIDTH) == 0 )
+		{
+			cout<<"ParticleResolverPlugin : DiffusionParticleResolver Found Attribute ["<<CONSTANTWIDTH<<"]"<<endl;
+			FoundConstWidth = true;
+			ConstWidthPointer = (RtFloat*)Data[i];
+		}else if( strcmp(Tokens[i],COLOR) == 0 )
+		{
+			cout<<"ParticleResolverPlugin : DiffusionParticleResolver Found Attribute ["<<COLOR<<"]"<<endl;
+			FoundColor = true;
+			CsPointer = (RtColor*)Data[i];
+		}else if( strcmp(Tokens[i],OPACITY) == 0 )
+		{
+			cout<<"ParticleResolverPlugin : DiffusionParticleResolver Found Attribute ["<<OPACITY<<"]"<<endl;
+			FoundOpacity = true;
+			OsPointer = (RtColor*)Data[i];
 		}
 	}
 
@@ -184,6 +204,7 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 		}
 
 		DF(NCopies,TemplatePoints);
+
 		for( int i=0; i<NCopies; ++i )
 		{
 			float3 XYZ,RTP;
@@ -195,24 +216,62 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 			TemplatePoints[i] = XYZ;
 		}
 
-		float CW = 0.01f;
+		// Prepare the four inner particle attributes.
+		RtToken Tokens2[4] = {NULL,NULL,NULL,NULL};
+		RtPointer Data2[4] = {NULL,NULL,NULL,NULL};
 
-		RtToken Tokens2[2];
-		Tokens2[0] = "P";
-		Tokens2[1] = "constantwidth";
-		RtPointer Data2[2];
+		Tokens2[0] = POSITION;
 		Data2[0] = TemplatePoints;
-		Data2[1] = &CW;
 
+		int N2 = 1;
+
+		if( FoundConstWidth )
+		{
+			Tokens2[N2] = CONSTANTWIDTH;
+			Data2[N2] = ConstWidthPointer;
+			++N2;
+		}else
+		{
+			Tokens[N2] = CONSTANTWIDTH;
+			Data2[N2] = &ConstWidth;
+			++N2;
+		}
+		
+
+		if( FoundColor )
+		{
+			Tokens2[N2] = COLOR;
+			Data2[N2] = CsPointer;
+			++N2;
+		}else
+		{
+			Tokens2[N2] = COLOR;
+			Data2[N2] = &ConstColor[0];
+			++N2;
+		}
+		
+
+		if( FoundOpacity )
+		{
+			Tokens2[N2] = OPACITY;
+			Data2[N2] = OsPointer;
+			++N2;
+		}else
+		{
+			Tokens2[N2] = OPACITY;
+			Data2[N2] = &ConstOpacity[0];
+			++N2;
+		}
+
+		// Render them !
 		float3* SeedPosition = (float3*)PositionPointer;
 		for( int i=0; i<NVerts; ++i )
 		{
 			RiTransformBegin();
 			RiTranslate(SeedPosition[i].x,SeedPosition[i].y,SeedPosition[i].z);
-			RiPointsV(NCopies,2,Tokens2,Data2);
+			RiPointsV(NCopies,N2,Tokens2,Data2);
 			RiTransformEnd();
 		}
-
 
 		delete [] TemplatePoints;
 	}catch(const exception& e)
