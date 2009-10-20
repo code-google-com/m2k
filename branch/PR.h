@@ -38,6 +38,21 @@ private:
 	RtInt mRandPattern;
 };
 
+class PolygonParticleResolver : public ParticleResolver
+{
+public:
+	PolygonParticleResolver();
+	~PolygonParticleResolver();
+	
+	void SetPath(const char*);
+	void SetSubdLevel(const int&);
+	
+	RtVoid DoIt(RtInt, RtInt, RtToken [], RtPointer []);
+private:
+	int mSubdLevel;
+	std::string mPath;
+};
+
 class ExternalParticleResolver : public ParticleResolver
 {
 public:
