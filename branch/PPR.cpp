@@ -14,6 +14,8 @@
 
 #include <boost/shared_array.hpp>
 
+#include "PR.h"
+
 struct float3
 {
 	float x,y,z;

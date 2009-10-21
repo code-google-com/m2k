@@ -1,4 +1,6 @@
-﻿#define _USE_MATH_DEFINES
+﻿
+
+#define _USE_MATH_DEFINES
 #include <math.h>
 #include <time.h>
 
@@ -12,6 +14,9 @@
 
 #include <ri.h>
 
+#include <sfcnn.hpp>
+#include <dpoint.hpp>
+
 #include "PR.h"
 
 using namespace std;
@@ -24,6 +29,12 @@ using namespace std;
 static float ConstWidth = 0.16666666f;
 static RtColor ConstColor = {1.0f, 0.0f, 0.0f};
 static RtColor ConstOpacity = {1.0f, 1.0f, 1.0f};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+typedef reviver::dpoint<float,3> ANNPoint;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct float3
 {
