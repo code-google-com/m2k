@@ -1,13 +1,44 @@
-﻿
+﻿/*
+* Copyright (c) 1998, Bo Zhou <Bo.Schwarzstein@gmail.com>
+* All rights reserved.
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions are met:
+*
+*     * Redistributions of source code must retain the above copyright
+*       notice, this list of conditions and the following disclaimer.
+*     * Redistributions in binary form must reproduce the above copyright
+*       notice, this list of conditions and the following disclaimer in the
+*       documentation and/or other materials provided with the distribution.
+*     * Neither the name of the Bo Zhou, nor the names of its contributors
+*       may be used to endorse or promote products derived from this
+*       software without specific prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+* EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+* WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+* DISCLAIMED. IN NO EVENT SHALL THE REGENTS AND CONTRIBUTORS BE LIABLE FOR ANY
+* DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+* LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+* ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+// Only support to interpolate scalar now
 
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <time.h>
 
 #include <iostream>
+#include <map>
+#include <vector>
+
+#include <omp.h>
 
 #include <boost/function.hpp>
 #include <boost/scoped_array.hpp>
+#include <boost/progress.hpp>
 
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_qrng.h>
@@ -35,11 +66,6 @@ static RtColor ConstOpacity = {1.0f, 1.0f, 1.0f};
 typedef reviver::dpoint<float,3> ANNPoint;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-struct float3
-{
-	float x,y,z;
-};
 
 inline float RadToDeg(const float R)
 {
@@ -163,40 +189,59 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 		return;
 	}
 
-	bool FoundPosition = false, FoundConstWidth = false, FoundColor = false, FoundOpacity = false;
+	bool FindPosition = false;
+	bool FindConstWidth = false;
+	bool FindColor = false;
+	bool FindOpacity = false;
+
 	RtPoint* PositionPointer = NULL;
 	RtFloat* ConstWidthPointer = NULL;
 	RtColor* CsPointer = NULL;
 	RtColor* OsPointer = NULL;
+	int N2 = 0;
 	for( int i=0; i<N; ++i )
 	{
 		if( strcmp(Tokens[i],POSITION) == 0 )
 		{
 			cout<<"ParticleResolverPlugin : DiffusionParticleResolver Found Attribute ["<<POSITION<<"]"<<endl;
-			FoundPosition = true;
 			PositionPointer = (RtPoint*)Data[i];
+
+			FindPosition = true;
 		}else if( strcmp(Tokens[i],CONSTANTWIDTH) == 0 )
 		{
 			cout<<"ParticleResolverPlugin : DiffusionParticleResolver Found Attribute ["<<CONSTANTWIDTH<<"]"<<endl;
-			FoundConstWidth = true;
 			ConstWidthPointer = (RtFloat*)Data[i];
+
+			FindConstWidth = true;
+			N2++;
 		}else if( strcmp(Tokens[i],COLOR) == 0 )
 		{
 			cout<<"ParticleResolverPlugin : DiffusionParticleResolver Found Attribute ["<<COLOR<<"]"<<endl;
-			FoundColor = true;
 			CsPointer = (RtColor*)Data[i];
+
+			FindColor = true;
 		}else if( strcmp(Tokens[i],OPACITY) == 0 )
 		{
 			cout<<"ParticleResolverPlugin : DiffusionParticleResolver Found Attribute ["<<OPACITY<<"]"<<endl;
-			FoundOpacity = true;
 			OsPointer = (RtColor*)Data[i];
+
+			FindOpacity = true;
 		}
 	}
 
 	try
 	{
-		float3* TemplatePoints = new float3[NCopies];
+		boost::scoped_array<float3> ClonePoints( new float3[NCopies] );
+		boost::scoped_array<float> CloneWidths( new float[NCopies] );
+		boost::scoped_array<float3> CloneColors( new float3[NCopies] );
+		boost::scoped_array<float3> CloneOpacities( new float3[NCopies] );
 
+		// Prepare the four inner particle attributes.
+		RtToken Tokens2[4] = {POSITION,"varying float width",COLOR,OPACITY};
+		RtPointer Data2[4] = {ClonePoints.get(),CloneWidths.get(),CloneColors.get(),CloneOpacities.get()};
+
+		// Make a random points cluster
+		boost::scoped_array<float3> TemplatePoints( new float3[NCopies] );
 		DistFunc DF;
 		switch( RandPattern )
 		{
@@ -214,77 +259,114 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 			break;
 		}
 
-		DF(NCopies,TemplatePoints);
+		DF(NCopies,TemplatePoints.get());
 
-		for( int i=0; i<NCopies; ++i )
+		// Make 4 attributes
+		int i = 0;
+
+		int NumOfProcess = omp_get_num_procs();
+		cout<<"ParticleResolverPlugin : DiffusionParticleResolver Found ["<<NumOfProcess<<"] Processors"<<endl;
+
+#pragma omp parallel num_threads( NumOfProcess )
 		{
-			float3 XYZ,RTP;
-			XYZ = TemplatePoints[i];
-			CubeToSphere(XYZ);
-			CartesianCoordToSphericalCoord(XYZ,RTP);
-			RTP.x = powf( (float)rand() / (float)RAND_MAX, 0.5f );
-			SphericalCoordToCartesianCoord(RTP,XYZ);
-			TemplatePoints[i] = XYZ;
+#pragma omp for private(i)
+			for( i=0; i<NCopies; ++i )
+			{
+				// Varing P
+				float3 XYZ,RTP;
+				XYZ = TemplatePoints[i];
+				CubeToSphere(XYZ);
+				CartesianCoordToSphericalCoord(XYZ,RTP);
+				RTP.x = sqrtf( (float)rand() / (float)RAND_MAX );
+				//SphericalCoordToCartesianCoord(RTP,XYZ);
+				TemplatePoints[i] = RTP;
+				
+				//
+				CloneWidths[i] = ConstWidthPointer[0];
+
+				
+				if( FindOpacity )
+				{
+					CloneOpacities[i].x = OsPointer[i][0];
+					CloneOpacities[i].y = OsPointer[i][1];
+					CloneOpacities[i].z = OsPointer[i][2];
+				}else
+				{
+					CloneOpacities[i].x = 1.0f;
+					CloneOpacities[i].y = 1.0f;
+					CloneOpacities[i].z = 1.0f;
+				}
+			}
+
 		}
 
-		// Prepare the four inner particle attributes.
-		RtToken Tokens2[4] = {NULL,NULL,NULL,NULL};
-		RtPointer Data2[4] = {NULL,NULL,NULL,NULL};
-
-		Tokens2[0] = POSITION;
-		Data2[0] = TemplatePoints;
-
-		int N2 = 1;
-
-		if( FoundConstWidth )
+		boost::scoped_array<ANNPoint> KNNPoints( new ANNPoint[NVerts] );
+		for( int i=0; i<NVerts; ++i )
 		{
-			Tokens2[N2] = CONSTANTWIDTH;
-			Data2[N2] = ConstWidthPointer;
-			++N2;
-		}else
-		{
-			Tokens[N2] = CONSTANTWIDTH;
-			Data2[N2] = &ConstWidth;
-			++N2;
+			KNNPoints[i][0] = PositionPointer[i][0];
+			KNNPoints[i][1] = PositionPointer[i][1];
+			KNNPoints[i][2] = PositionPointer[i][2];
 		}
-		
-
-		if( FoundColor )
-		{
-			Tokens2[N2] = COLOR;
-			Data2[N2] = CsPointer;
-			++N2;
-		}else
-		{
-			Tokens2[N2] = COLOR;
-			Data2[N2] = &ConstColor[0];
-			++N2;
-		}
-		
-
-		if( FoundOpacity )
-		{
-			Tokens2[N2] = OPACITY;
-			Data2[N2] = OsPointer;
-			++N2;
-		}else
-		{
-			Tokens2[N2] = OPACITY;
-			Data2[N2] = &ConstOpacity[0];
-			++N2;
-		}
+		sfcnn<ANNPoint,3,float> KNN( KNNPoints.get(), NVerts, 2 );
 
 		// Render them !
 		float3* SeedPosition = (float3*)PositionPointer;
+
+		boost::progress_display Progress(NVerts);
+
+		boost::progress_timer Timer;
 		for( int i=0; i<NVerts; ++i )
 		{
-			RiTransformBegin();
-			RiTranslate(SeedPosition[i].x,SeedPosition[i].y,SeedPosition[i].z);
-			RiPointsV(NCopies,N2,Tokens2,Data2);
-			RiTransformEnd();
-		}
+			const float3 CurrSeed = SeedPosition[i];
 
-		delete [] TemplatePoints;
+			// Varying ATTRIBUTES ! 
+			// Color Only NOW !
+#pragma omp parallel num_threads(NumOfProcess) shared(i)
+			{
+			int j = 0;
+			
+#pragma omp for private(j)
+			for( j=0; j<NCopies; ++j )
+			{
+				float3 LookupPos;
+				SphericalCoordToCartesianCoord(TemplatePoints[j],LookupPos); 
+
+				LookupPos.x += CurrSeed.x;
+				LookupPos.y += CurrSeed.y;
+				LookupPos.z += CurrSeed.z;
+				const int k = 128;
+				vector<long unsigned int> NNIdx;
+				vector<double> NNDist;
+				KNN.ksearch( ANNPoint(LookupPos.x,LookupPos.y,LookupPos.z), k, NNIdx, NNDist );
+
+				float TotalWeight = 0.0f;
+				for( int a=0; a<k; ++a )
+				{
+					const float W = NNDist[a];
+					TotalWeight += W;
+
+					CloneColors[j].x += CsPointer[i][0]*W;
+					CloneColors[j].y += CsPointer[i][1]*W;
+					CloneColors[j].z += CsPointer[i][2]*W;
+				}
+
+				CloneColors[j].x /= TotalWeight;
+				CloneColors[j].y /= TotalWeight;
+				CloneColors[j].z /= TotalWeight;
+
+				float3 RealPos;
+				SphericalCoordToCartesianCoord(TemplatePoints[j],RealPos);
+				ClonePoints[j] = RealPos;
+			}
+			}
+
+			RiTransformBegin();
+			RiTranslate(CurrSeed.x,CurrSeed.y,CurrSeed.z);
+			RiPointsV(NCopies,4,Tokens2,Data2);
+			RiTransformEnd();
+
+			++Progress;
+		}
 	}catch(const exception& e)
 	{
 		cerr<<"ParticleResolverPlugin : DiffusionParticleResolver Catch C++ Exception ["<<e.what()<<"]"<<endl;
