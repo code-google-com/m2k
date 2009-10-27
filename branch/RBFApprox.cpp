@@ -46,16 +46,6 @@ struct Multiquad
 typedef  boost::function<float(float r,float c)> RBF;
 
 template<class DataType, class CoordType>
-RBFApprox<DataType,CoordType>::RBFApprox(const float Const) : mConst(Const)
-{
-}
-
-template<class DataType, class CoordType>
-RBFApprox<DataType,CoordType>::~RBFApprox()
-{
-}
-
-template<class DataType, class CoordType>
 void RBFApprox<DataType,CoordType>::GetInterpolatedValue(const size_t Len, const int, const CT* Coords, const DT* Values, const CT& LookupPos, DT& Result)
 {
 	const float Const = mConst;

@@ -35,6 +35,7 @@ using namespace std;
 #define PRTYPE "PRType"
 #define NCOPIES "NCopies"
 #define RANDPATTERN "RandPattern"
+#define FALLOFF "Falloff"
 #define PATH "Path"
 #define PARAMETERS "Parameters"
 
@@ -94,6 +95,18 @@ RtVoid ParticleResolverPlugin::AttributeV(RtToken Name, RtInt N, RtToken Tokens[
 				}else
 				{
 					cerr<<"ParticleResolverPlugin : Only DiffusionParticleResolver Use Attribute ["<<RANDPATTERN<<"]."<<endl;
+				}
+			}else if( strstr(Tokens[i],FALLOFF) )
+			{
+				float Falloff = *(float*)Data[0];
+				DiffusionParticleResolver* p = dynamic_cast<DiffusionParticleResolver*>( Instance.get() );
+				if( p )
+				{
+					p->SetFalloff(Falloff);
+					cout<<fixed<<"ParticleResolverPlugin : Falloff Coefficient ["<< Falloff <<"]"<<endl;
+				}else
+				{
+					cerr<<"ParticleResolverPlugin : Only DiffusionParticleResolver Use Attribute ["<<FALLOFF<<"]."<<endl;
 				}
 			}
 		}

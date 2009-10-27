@@ -95,7 +95,7 @@ public:
 
 	void SetRandPattern(const RtInt&);
 	void SetNCopies(const RtInt&);
-	void SetFalloff(const RtInt&);
+	void SetFalloff(const RtFloat&);
 
 	/**
 	 * \todo
@@ -104,7 +104,7 @@ public:
 	 */
 	RtVoid DoIt(RtInt, RtInt, RtToken [], RtPointer []);
 private:
-	RtInt mFalloff;
+	RtFloat mFalloff;
 	RtInt mNCopies;
 	RtInt mRandPattern;
 };

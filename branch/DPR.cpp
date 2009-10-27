@@ -48,7 +48,9 @@
 #include <sfcnn.hpp>
 #include <dpoint.hpp>
 
+#include "Approx.h"
 #include "PR.h"
+
 
 using namespace std;
 
@@ -169,7 +171,7 @@ struct SobolQRand
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-DiffusionParticleResolver::DiffusionParticleResolver() : mRandPattern(0), mNCopies(0), mFalloff(0)
+DiffusionParticleResolver::DiffusionParticleResolver() : mRandPattern(0), mNCopies(0), mFalloff(-1.0f)
 {
 }
 
@@ -180,7 +182,7 @@ DiffusionParticleResolver::~DiffusionParticleResolver()
 RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], RtPointer Data[])
 {
 	const int NCopies = mNCopies;
-	//const int Falloff = mFalloff;
+	const int Falloff = mFalloff;
 	const int RandPattern = mRandPattern;
 	// We do not need to do anything.
 	if( NCopies == 0 )
@@ -237,7 +239,7 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 		boost::scoped_array<float3> CloneOpacities( new float3[NCopies] );
 
 		// Prepare the four inner particle attributes.
-		RtToken Tokens2[4] = {POSITION,"varying float width",COLOR,OPACITY};
+		RtToken Tokens2[4] = {POSITION,"width",COLOR,OPACITY};
 		RtPointer Data2[4] = {ClonePoints.get(),CloneWidths.get(),CloneColors.get(),CloneOpacities.get()};
 
 		// Make a random points cluster
@@ -280,9 +282,6 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 				RTP.x = sqrtf( (float)rand() / (float)RAND_MAX );
 				//SphericalCoordToCartesianCoord(RTP,XYZ);
 				TemplatePoints[i] = RTP;
-				
-				//
-				CloneWidths[i] = ConstWidthPointer[0];
 
 				
 				if( FindOpacity )
@@ -323,45 +322,91 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 			// Color Only NOW !
 #pragma omp parallel num_threads(NumOfProcess) shared(i)
 			{
-			int j = 0;
+				int j = 0;
+				
 			
 #pragma omp for private(j)
-			for( j=0; j<NCopies; ++j )
-			{
-				float3 LookupPos;
-				SphericalCoordToCartesianCoord(TemplatePoints[j],LookupPos); 
-
-				LookupPos.x += CurrSeed.x;
-				LookupPos.y += CurrSeed.y;
-				LookupPos.z += CurrSeed.z;
-				const int k = 128;
-				vector<long unsigned int> NNIdx;
-				vector<double> NNDist;
-				KNN.ksearch( ANNPoint(LookupPos.x,LookupPos.y,LookupPos.z), k, NNIdx, NNDist );
-
-				float TotalWeight = 0.0f;
-				for( int a=0; a<k; ++a )
+				for( j=0; j<NCopies; ++j )
 				{
-					const float W = NNDist[a];
-					TotalWeight += W;
+					float3 LookupPos;
+					SphericalCoordToCartesianCoord(TemplatePoints[j],LookupPos); 
 
-					CloneColors[j].x += CsPointer[i][0]*W;
-					CloneColors[j].y += CsPointer[i][1]*W;
-					CloneColors[j].z += CsPointer[i][2]*W;
+					LookupPos.x += CurrSeed.x;
+					LookupPos.y += CurrSeed.y;
+					LookupPos.z += CurrSeed.z;
+
+					const int k = 12;
+					vector<long unsigned int> NNIdx;
+					vector<double> NNDist;
+					KNN.ksearch( ANNPoint(LookupPos.x,LookupPos.y,LookupPos.z), k, NNIdx, NNDist);
+
+
+					// Blobby Interpolation
+					// BEGIN
+					float BlobbyR = NNDist[k-1];
+					float Red = 0.0f, Green = 0.0f, Blue = 0.0f;
+					for( int a = 0; a<k; ++a )
+					{
+						float r = NNDist[a];
+
+						float rdivR = r/BlobbyR;
+						float W_h = -4.0f/9.0f*powf(rdivR,6.0f) + 17.0f/9.0f*powf(rdivR,4.0f) - 22.0f/9.0f*pow(rdivR,2.0f) + 1.0f;
+
+						// float W_h = 15.0f*M_1_PI*pow(2.0f-r/h,3.0f)*0.015625f/powf(h,3.0f);
+
+						const long unsigned int Idx = NNIdx[a];
+
+						Red += W_h * CsPointer[Idx][0];
+						Green += W_h * CsPointer[Idx][1];
+						Blue += W_h * CsPointer[Idx][2];
+					}
+					CloneColors[j].x = Red;
+					CloneColors[j].y = Green;
+					CloneColors[j].z = Blue;
+					//// END
+
+					// Inverse Distance Interpolation
+					// BEGIN
+					float TotalWeight = 0.0f;
+					for( int a=0; a<k; ++a )
+					{
+						const long unsigned int Idx = NNIdx[a];
+						const float W = NNDist[a];
+						TotalWeight += W;
+						CloneColors[j].x += CsPointer[Idx][0]*W;
+						CloneColors[j].y += CsPointer[Idx][1]*W;
+						CloneColors[j].z += CsPointer[Idx][2]*W;
+					}
+
+					CloneColors[j].x /= TotalWeight;
+					CloneColors[j].y /= TotalWeight;
+					CloneColors[j].z /= TotalWeight;
+
+					CloneColors[j].x *= 2.0f;
+					CloneColors[j].y *= 2.0f;
+					CloneColors[j].z *= 2.0f;
+					// END
+
+
+
+					float UnitRadius = TemplatePoints[j].x;
+					float3 RealPos = TemplatePoints[j];
+					RealPos.x *= NNDist[1];
+					float3 RealPos1;
+
+					if( mFalloff < 0.0f )
+						CloneWidths[j] = ConstWidthPointer[0]*0.5f;
+					else
+						CloneWidths[j] = ConstWidthPointer[0]*powf(1.001f - UnitRadius,Falloff);
+
+					SphericalCoordToCartesianCoord(RealPos,RealPos1);
+					ClonePoints[j] = RealPos1;
 				}
-
-				CloneColors[j].x /= TotalWeight;
-				CloneColors[j].y /= TotalWeight;
-				CloneColors[j].z /= TotalWeight;
-
-				float3 RealPos;
-				SphericalCoordToCartesianCoord(TemplatePoints[j],RealPos);
-				ClonePoints[j] = RealPos;
-			}
 			}
 
 			RiTransformBegin();
 			RiTranslate(CurrSeed.x,CurrSeed.y,CurrSeed.z);
+			//RiScale(Scale,Scale,Scale);
 			RiPointsV(NCopies,4,Tokens2,Data2);
 			RiTransformEnd();
 
@@ -383,7 +428,7 @@ void DiffusionParticleResolver::SetRandPattern(const RtInt& RandPattern)
 	mRandPattern = RandPattern;
 }
 
-void DiffusionParticleResolver::SetFalloff(const RtInt& Falloff)
+void DiffusionParticleResolver::SetFalloff(const RtFloat& Falloff)
 {
 	mFalloff = Falloff;
 }
