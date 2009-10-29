@@ -160,6 +160,23 @@ private:
 	std::string mPath;
 };
 
+/**
+ * \brief "KK"
+ * 
+ * It would load an external Krakatoa .PRT file and render it.
+ */
+class KKParticleResolver : public ParticleResolver
+{
+public:
+	KKParticleResolver();
+	~KKParticleResolver();
+
+	void SetPath(const char*);
+	RtVoid DoIt(RtInt, RtInt, RtToken [], RtPointer []);
+private:
+	std::string mPath;
+};
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**

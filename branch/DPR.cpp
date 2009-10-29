@@ -34,7 +34,9 @@
 #include <map>
 #include <vector>
 
+#ifdef ENABLE_OPENMP
 #include <omp.h>
+#endif
 
 #include <boost/function.hpp>
 #include <boost/scoped_array.hpp>
@@ -265,8 +267,10 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 
 		// Make 4 attributes
 		int i = 0;
-
-		int NumOfProcess = omp_get_num_procs();
+		int NumOfProcess = 1;
+#ifdef ENABLE_OPENMP
+		NumOfProcess = omp_get_num_procs();
+#endif
 		cout<<"ParticleResolverPlugin : DiffusionParticleResolver Found ["<<NumOfProcess<<"] Processors"<<endl;
 
 #pragma omp parallel num_threads( NumOfProcess )

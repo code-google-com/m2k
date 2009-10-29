@@ -116,6 +116,7 @@ RtVoid ParticleResolverPlugin::AttributeV(RtToken Name, RtInt N, RtToken Tokens[
 
 RtVoid ParticleResolverPlugin::PointsV(RtInt NVerts, RtInt N, RtToken Tokens[], RtPointer Data[])
 {
+	cout<<"ParticleResolverPlugin : Found ["<<NVerts<<"] And ["<<N<<"] Tokens"<<endl;
 	Instance->DoIt(NVerts,N,Tokens,Data);
 	Instance.reset( new OriginParticleResolver );
 }
