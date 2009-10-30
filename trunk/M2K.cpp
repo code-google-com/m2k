@@ -207,8 +207,6 @@ MStatus M2K::doIt(const MArgList& Args)
 				string RealName, Type;
 				ISS>>RealName>>Arity>>Type;
 
-				cout<<RealName<<'\t'<<Arity<<'\t'<<Type<<endl;
-
 				if( RealName.size() == 0 || Arity == 0 || Type.size() != 1 )
 					continue;
 				
@@ -241,6 +239,7 @@ MStatus M2K::doIt(const MArgList& Args)
 						PS.getPerParticleAttribute( MString(RealName.c_str()), DA, &S );
 						if( S == MStatus::kSuccess )
 						{
+							cout<<"M2K got ["<<RealName<<"]"<<endl;
 							Array RawArray( new char[sizeof(float)*Count] );
 							float* p = (float*)RawArray.get();
 							for( unsigned int a=0; a<Count; ++a )
