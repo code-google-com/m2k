@@ -38,6 +38,8 @@ using namespace std;
 #define FALLOFF "Falloff"
 #define PATH "Path"
 #define PARAMETERS "Parameters"
+#define SEED "Seed"
+#define BOUND "Bound"
 
 RifPlugin* RifPluginManufacture(int argc, char **argv)
 {
@@ -67,7 +69,7 @@ RtVoid ParticleResolverPlugin::AttributeV(RtToken Name, RtInt N, RtToken Tokens[
 					cout<<"ParticleResolverPlugin : Using DiffusionParticleResolver"<<endl;
 					Instance.reset( new DiffusionParticleResolver );
 					break;
-				case 3:
+				case 2:
 					cout<<"ParticleResolverPlugin : Using ExternalParticleResolver"<<endl;
 					Instance.reset( new ExternalParticleResolver );
 					break;
@@ -82,7 +84,7 @@ RtVoid ParticleResolverPlugin::AttributeV(RtToken Name, RtInt N, RtToken Tokens[
 					cout<<"ParticleResolverPlugin : NCopies ["<< NCopies <<"]"<<endl;
 				}else
 				{
-					cerr<<"ParticleResolverPlugin : Only DiffusionParticleResolver Use Attribute ["<<NCOPIES<<"]."<<endl;
+					cerr<<"ParticleResolverPlugin : Only DiffusionParticleResolver Use Attribute ["<<NCOPIES<<"]"<<endl;
 				}
 			}else if( strstr(Tokens[i],RANDPATTERN) )
 			{
@@ -94,7 +96,7 @@ RtVoid ParticleResolverPlugin::AttributeV(RtToken Name, RtInt N, RtToken Tokens[
 					cout<<"ParticleResolverPlugin : RandPattern ["<< RandPattern <<"]"<<endl;
 				}else
 				{
-					cerr<<"ParticleResolverPlugin : Only DiffusionParticleResolver Use Attribute ["<<RANDPATTERN<<"]."<<endl;
+					cerr<<"ParticleResolverPlugin : Only DiffusionParticleResolver Use Attribute ["<<RANDPATTERN<<"]"<<endl;
 				}
 			}else if( strstr(Tokens[i],FALLOFF) )
 			{
@@ -106,7 +108,39 @@ RtVoid ParticleResolverPlugin::AttributeV(RtToken Name, RtInt N, RtToken Tokens[
 					cout<<fixed<<"ParticleResolverPlugin : Falloff Coefficient ["<< Falloff <<"]"<<endl;
 				}else
 				{
-					cerr<<"ParticleResolverPlugin : Only DiffusionParticleResolver Use Attribute ["<<FALLOFF<<"]."<<endl;
+					cerr<<"ParticleResolverPlugin : Only DiffusionParticleResolver Use Attribute ["<<FALLOFF<<"]"<<endl;
+				}
+			}else if( strstr(Tokens[i],SEED) )
+			{
+				int Seed = *(int*)Data[0];
+				DiffusionParticleResolver* p = dynamic_cast<DiffusionParticleResolver*>( Instance.get() );
+				if( p )
+				{
+					p->SetSeed(Seed);
+					cout<<fixed<<"ParticleResolverPlugin : Random Seed ["<< Seed <<"]"<<endl;
+				}else
+				{
+					cerr<<"ParticleResolverPlugin : Only DiffusionParticleResolver Use Attribute ["<<SEED<<"]"<<endl;
+				}
+			}else if( strstr(Tokens[i],BOUND) )
+			{
+				// \todo We have to deal with array.
+				float* Bound = (float*)Data;
+				RtBound B;
+				B[0] = Bound[0];
+				B[1] = Bound[1];
+				B[2] = Bound[2];
+				B[3] = Bound[3];
+				B[4] = Bound[4];
+				B[5] = Bound[5];
+				ExternalParticleResolver* p = dynamic_cast<ExternalParticleResolver*>( Instance.get() );
+				if( p )
+				{
+					p->SetBound(B);
+					cout<<fixed<<"ParticleResolverPlugin : ExternalParticleResolver Use Bound ["<<B[0]<<' '<<B[1]<<' '<<B[2]<<' '<<B[3]<<' '<<B[4]<<' '<<B[5]<<"]"<<endl;
+				}else
+				{
+					cerr<<"ParticleResolverPlugin : Only ExternalParticleResolver Use Attribute ["<<BOUND<<"]"<<endl;
 				}
 			}
 		}

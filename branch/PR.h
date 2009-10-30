@@ -93,9 +93,10 @@ public:
 	DiffusionParticleResolver();
 	~DiffusionParticleResolver();
 
-	void SetRandPattern(const RtInt&);
-	void SetNCopies(const RtInt&);
 	void SetFalloff(const RtFloat&);
+	void SetNCopies(const RtInt&);
+	void SetRandPattern(const RtInt&);
+	void SetSeed(const RtInt&);
 
 	/**
 	 * \todo
@@ -107,11 +108,14 @@ private:
 	RtFloat mFalloff;
 	RtInt mNCopies;
 	RtInt mRandPattern;
+	RtInt mSeed;
 };
 
 /**
  * \brief "Polygon"
  *
+ * We only support FBX now. Because the FBX could contain animation data so that
+ * we can deal with motion blur much more easily.
  * It will
  * - Apply(or not) subdivision on an Wavefront OBJ mesh.
  * - Sample primitives to generate a initialized distribution to represent the geometry.
@@ -150,7 +154,7 @@ public:
 	~ExternalParticleResolver();
 
 	void SetPath(const char*);
-
+	void SetBound(const RtBound&);
 	/**
 	 * \todo
 	 * Have not been implemented yet.
@@ -158,6 +162,7 @@ public:
 	RtVoid DoIt(RtInt, RtInt, RtToken [], RtPointer []);
 private:
 	std::string mPath;
+	RtBound mB;
 };
 
 /**

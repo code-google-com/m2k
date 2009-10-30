@@ -46,3 +46,13 @@ RtVoid ExternalParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], R
 {
 	RiPointsV(NVerts,N,Tokens,Data);
 }
+
+void ExternalParticleResolver::SetBound(const RtBound& B)
+{
+	mB[0] = B[0];
+	mB[1] = B[1];
+	mB[2] = B[2];
+	mB[3] = B[3];
+	mB[4] = B[4];
+	mB[5] = B[5];
+}

@@ -122,13 +122,13 @@ void SphericalCoordToCartesianCoord(const float3& RTP, float3& XYZ)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-typedef boost::function2<void, const int, float3*> DistFunc;
+typedef boost::function3<void, const int, const int, float3*> DistFunc;
 
 struct DefaultRand
 {
-	void operator()(const int N, float3* P) const
+	void operator()(const int S, const int N, float3* P) const
 	{
-		srand(time(0));
+		srand(S);
 		for( int i=0; i<N; ++i )
 		{
 			P[i].x = (float)rand() / (float)RAND_MAX;
@@ -140,10 +140,10 @@ struct DefaultRand
 
 struct DRAND48Rand
 {
-	void operator()(const int N, float3* P) const
+	void operator()(const int S, const int N, float3* P) const
 	{
 		gsl_rng* RNG = gsl_rng_alloc(gsl_rng_rand48);
-		gsl_rng_set(RNG,time(0));
+		gsl_rng_set(RNG,S);
 		for( int i=0; i<N; ++i )
 		{
 			P[i].x = (float)gsl_rng_uniform(RNG);
@@ -156,7 +156,7 @@ struct DRAND48Rand
 
 struct SobolQRand
 {
-	void operator()(const int N, float3* P) const
+	void operator()(const int S, const int N, float3* P) const
 	{
 		gsl_qrng* QRNG = gsl_qrng_alloc(gsl_qrng_sobol, 2);
 		double Result[2];
@@ -173,7 +173,7 @@ struct SobolQRand
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-DiffusionParticleResolver::DiffusionParticleResolver() : mRandPattern(0), mNCopies(0), mFalloff(-1.0f)
+DiffusionParticleResolver::DiffusionParticleResolver() : mRandPattern(0), mNCopies(0), mFalloff(-1.0f), mSeed(0x12345678)
 {
 }
 
@@ -186,6 +186,7 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 	const int NCopies = mNCopies;
 	const int Falloff = mFalloff;
 	const int RandPattern = mRandPattern;
+	const int Seed = mSeed;
 	// We do not need to do anything.
 	if( NCopies == 0 )
 	{
@@ -263,7 +264,7 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 			break;
 		}
 
-		DF(NCopies,TemplatePoints.get());
+		DF(Seed,NCopies,TemplatePoints.get());
 
 		// Make 4 attributes
 		int i = 0;
@@ -303,6 +304,7 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 
 		}
 
+		// Prepare for kNN lookup
 		boost::scoped_array<ANNPoint> KNNPoints( new ANNPoint[NVerts] );
 		for( int i=0; i<NVerts; ++i )
 		{
@@ -344,7 +346,6 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 					vector<double> NNDist;
 					KNN.ksearch( ANNPoint(LookupPos.x,LookupPos.y,LookupPos.z), k, NNIdx, NNDist);
 
-
 					// Blobby Interpolation
 					// BEGIN
 					float BlobbyR = NNDist[k-1];
@@ -355,8 +356,6 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 
 						float rdivR = r/BlobbyR;
 						float W_h = -4.0f/9.0f*powf(rdivR,6.0f) + 17.0f/9.0f*powf(rdivR,4.0f) - 22.0f/9.0f*pow(rdivR,2.0f) + 1.0f;
-
-						// float W_h = 15.0f*M_1_PI*pow(2.0f-r/h,3.0f)*0.015625f/powf(h,3.0f);
 
 						const long unsigned int Idx = NNIdx[a];
 
@@ -369,27 +368,27 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 					CloneColors[j].z = Blue;
 					//// END
 
-					// Inverse Distance Interpolation
-					// BEGIN
-					float TotalWeight = 0.0f;
-					for( int a=0; a<k; ++a )
-					{
-						const long unsigned int Idx = NNIdx[a];
-						const float W = NNDist[a];
-						TotalWeight += W;
-						CloneColors[j].x += CsPointer[Idx][0]*W;
-						CloneColors[j].y += CsPointer[Idx][1]*W;
-						CloneColors[j].z += CsPointer[Idx][2]*W;
-					}
+					//// Inverse Distance Interpolation
+					//// BEGIN
+					//float TotalWeight = 0.0f;
+					//for( int a=0; a<k; ++a )
+					//{
+					//	const long unsigned int Idx = NNIdx[a];
+					//	const float W = NNDist[a];
+					//	TotalWeight += W;
+					//	CloneColors[j].x += CsPointer[Idx][0]*W;
+					//	CloneColors[j].y += CsPointer[Idx][1]*W;
+					//	CloneColors[j].z += CsPointer[Idx][2]*W;
+					//}
 
-					CloneColors[j].x /= TotalWeight;
-					CloneColors[j].y /= TotalWeight;
-					CloneColors[j].z /= TotalWeight;
+					//CloneColors[j].x /= TotalWeight;
+					//CloneColors[j].y /= TotalWeight;
+					//CloneColors[j].z /= TotalWeight;
 
-					CloneColors[j].x *= 2.0f;
-					CloneColors[j].y *= 2.0f;
-					CloneColors[j].z *= 2.0f;
-					// END
+					//CloneColors[j].x *= 2.0f;
+					//CloneColors[j].y *= 2.0f;
+					//CloneColors[j].z *= 2.0f;
+					//// END
 
 
 
@@ -422,6 +421,11 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 	}
 }
 
+void DiffusionParticleResolver::SetFalloff(const RtFloat& Falloff)
+{
+	mFalloff = Falloff;
+}
+
 void DiffusionParticleResolver::SetNCopies(const RtInt& NCopies)
 {
 	mNCopies = NCopies;
@@ -432,7 +436,7 @@ void DiffusionParticleResolver::SetRandPattern(const RtInt& RandPattern)
 	mRandPattern = RandPattern;
 }
 
-void DiffusionParticleResolver::SetFalloff(const RtFloat& Falloff)
+void DiffusionParticleResolver::SetSeed(const RtInt& Seed)
 {
-	mFalloff = Falloff;
+	mSeed = Seed;
 }

@@ -29,6 +29,8 @@
 
 #include <boost/shared_array.hpp>
 
+#include <fbxsdk.h>
+
 #include "PR.h"
 
 using namespace std;
@@ -36,10 +38,56 @@ using namespace std;
 class RawModel
 {
 public:
+	RawModel() : NF(0), NI(0), NV(0), NN(0)
+	{
+	}
 	size_t NF, NI, NV, NN;
 	boost::shared_array<unsigned int> F,I;
 	boost::shared_array<float3> V,N;
 };
+
+/** \todo To deal with .obj and .fbx
+ *
+ */
+static bool ReadWavefrontObj(const char* Path)
+{
+	FILE* FP = fopen(Path,"r");
+	char LineBuf[2049];
+	while( fgets(LineBuf,2048,FP) )
+	{
+	}
+	return true;
+}
+
+static bool ReadFBX(const char* Path, RawModel& Model)
+{
+	KFbxSdkManager* SdkMgr = KFbxSdkManager::Create();
+	KFbxScene* Scn = KFbxScene::Create(SdkMgr, "");
+	KFbxImporter* Imp = KFbxImporter::Create(SdkMgr,"");
+
+	bool R = Imp->Initialize(Path);
+	if( R != true )
+	{
+		cerr<<"[ERROR] Can't Load FBX File ["<<Path<<"]"<<endl;
+		// R = false;
+	}else
+	{
+		if( Imp->Import(Scn) )
+		{
+
+		}else
+		{
+			R = false;
+		}
+	}
+
+	Imp->Destroy();
+	Scn->Destroy();
+	SdkMgr->Destroy();
+	return R;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 PolygonParticleResolver::PolygonParticleResolver() : mSubdLevel(0)
 {
