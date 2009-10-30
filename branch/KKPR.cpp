@@ -1,4 +1,4 @@
-/*
+﻿/*
 * Copyright (c) 1998, Bo Zhou <Bo.Schwarzstein@gmail.com>
 * All rights reserved.
 * Redistribution and use in source and binary forms, with or without
