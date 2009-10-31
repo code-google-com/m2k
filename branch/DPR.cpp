@@ -50,7 +50,6 @@
 #include <sfcnn.hpp>
 #include <dpoint.hpp>
 
-#include "Approx.h"
 #include "PR.h"
 
 
