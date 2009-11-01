@@ -85,6 +85,8 @@ public:
 
 /**
  * \brief "Origin"
+ *
+ * It calls RenderMan's internal RiPointsV function.
  */
 class OriginParticleResolver : public ParticleResolver
 {
@@ -121,6 +123,7 @@ public:
 	void SetNCopies(const RtInt&);
 	void SetRandPattern(const RtInt&);
 	void SetSeed(const RtInt&);
+	void SetCoarseMode(const RtInt&);
 
 	/**
 	 * \todo
@@ -134,6 +137,7 @@ private:
 	RtInt mNCopies;
 	RtInt mRandPattern;
 	RtInt mSeed;
+	RtInt mCoarseMode;
 };
 
 /**

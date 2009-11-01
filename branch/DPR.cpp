@@ -172,7 +172,7 @@ struct SobolQRand
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-DiffusionParticleResolver::DiffusionParticleResolver() : mRandPattern(0), mNCopies(0), mFalloff(-1.0f), mSeed(0x12345678)
+DiffusionParticleResolver::DiffusionParticleResolver() : mRandPattern(0), mNCopies(0), mFalloff(-1.0f), mSeed(0x12345678), mCoarseMode(1)
 {
 }
 
@@ -264,6 +264,7 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 		}
 
 		DF(Seed,NCopies,TemplatePoints.get());
+		cout<<"ParticleResolverPlugin : DiffusionParticleResolver Use ["<<Seed<<"] Random Seed"<<endl;
 
 		// Make 4 attributes
 		int i = 0;
@@ -304,6 +305,8 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 		}
 
 		// Prepare for kNN lookup
+		// SeedNNIdx & SeedNNDist are used to store coarse KNN result.
+		const int k = 8;
 		boost::scoped_array<ANNPoint> KNNPoints( new ANNPoint[NVerts] );
 		for( int i=0; i<NVerts; ++i )
 		{
@@ -312,6 +315,29 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 			KNNPoints[i][2] = PositionPointer[i][2];
 		}
 		sfcnn<ANNPoint,3,float> KNN( KNNPoints.get(), NVerts, 2 );
+		boost::scoped_array<long unsigned int> SeedNNIdx;
+		boost::scoped_array<double> SeedNNDist;
+
+		bool UseCoarseLookup = true;
+
+		if( UseCoarseLookup )
+		{
+			SeedNNIdx.reset( new long unsigned int[NVerts*k] );
+			SeedNNDist.reset( new double[NVerts*k] );
+#pragma omp parallel num_threads( NumOfProcess )
+			{
+#pragma omp for private(i)
+				for( i=0; i<NVerts; ++i )
+				{
+					vector<long unsigned int> IdxVec;
+					vector<double> DistVec;
+					KNN.ksearch( KNNPoints[i], k, IdxVec, DistVec);
+
+					copy( IdxVec.begin(), IdxVec.end(), SeedNNIdx.get()+i*k );
+					copy( DistVec.begin(), DistVec.end(), SeedNNDist.get()+i*k );
+				}
+			}
+		}
 
 		// Render them !
 		float3* SeedPosition = (float3*)PositionPointer;
@@ -340,31 +366,86 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 					LookupPos.y += CurrSeed.y;
 					LookupPos.z += CurrSeed.z;
 
-					const int k = 12;
-					vector<long unsigned int> NNIdx;
-					vector<double> NNDist;
-					KNN.ksearch( ANNPoint(LookupPos.x,LookupPos.y,LookupPos.z), k, NNIdx, NNDist);
-
-					// Blobby Interpolation
-					// BEGIN
-					float BlobbyR = NNDist[k-1];
-					float Red = 0.0f, Green = 0.0f, Blue = 0.0f;
-					for( int a = 0; a<k; ++a )
+					if( UseCoarseLookup )
 					{
-						float r = NNDist[a];
 
-						float rdivR = r/BlobbyR;
-						float W_h = -4.0f/9.0f*powf(rdivR,6.0f) + 17.0f/9.0f*powf(rdivR,4.0f) - 22.0f/9.0f*pow(rdivR,2.0f) + 1.0f;
+						float BlobbyR = SeedNNDist[i*k+k-1];
+						float Red = 0.0f, Green = 0.0f, Blue = 0.0f;
+						float TotalWeight = 0.0f;
+						for( int a = 0; a<k-1; ++a )
+						{
+							float r = SeedNNDist[i*k+a];
 
-						const long unsigned int Idx = NNIdx[a];
+							float rdivR = r/BlobbyR;
+							float W_h = -4.0f/9.0f*powf(rdivR,6.0f) + 17.0f/9.0f*powf(rdivR,4.0f) - 22.0f/9.0f*pow(rdivR,2.0f) + 1.0f;
+							TotalWeight += W_h;
 
-						Red += W_h * CsPointer[Idx][0];
-						Green += W_h * CsPointer[Idx][1];
-						Blue += W_h * CsPointer[Idx][2];
+							const long unsigned int Idx = SeedNNIdx[i*k+a];
+
+							Red += W_h * CsPointer[Idx][0];
+							Green += W_h * CsPointer[Idx][1];
+							Blue += W_h * CsPointer[Idx][2];
+						}
+
+						TotalWeight = 1.0f;
+
+						CloneColors[j].x = Red / TotalWeight;
+						CloneColors[j].y = Green / TotalWeight;
+						CloneColors[j].z = Blue / TotalWeight;
+
+						float3 RealPos = TemplatePoints[j];
+						float UnitRadius = TemplatePoints[j].x;
+						RealPos.x = UnitRadius*SeedNNDist[i*k+k-3]*1.5f;
+						float3 RealPos1;
+
+						if( Falloff < 0.0f )
+							CloneWidths[j] = ConstWidthPointer[0]*0.1f;
+						else
+							CloneWidths[j] = ConstWidthPointer[0]*powf(1.001f - UnitRadius,Falloff);
+
+						SphericalCoordToCartesianCoord(RealPos,RealPos1);
+						ClonePoints[j] = RealPos1;
+
+					}else
+					{
+						vector<long unsigned int> NNIdx;
+						vector<double> NNDist;
+						KNN.ksearch( ANNPoint(LookupPos.x,LookupPos.y,LookupPos.z), k, NNIdx, NNDist);
+
+						// Blobby Interpolation
+						// BEGIN
+						float BlobbyR = NNDist[k-1];
+						float Red = 0.0f, Green = 0.0f, Blue = 0.0f;
+						for( int a = 0; a<k; ++a )
+						{
+							float r = NNDist[a];
+
+							float rdivR = r/BlobbyR;
+							float W_h = -4.0f/9.0f*powf(rdivR,6.0f) + 17.0f/9.0f*powf(rdivR,4.0f) - 22.0f/9.0f*pow(rdivR,2.0f) + 1.0f;
+
+							const long unsigned int Idx = NNIdx[a];
+
+							Red += W_h * CsPointer[Idx][0];
+							Green += W_h * CsPointer[Idx][1];
+							Blue += W_h * CsPointer[Idx][2];
+						}
+						CloneColors[j].x = Red;
+						CloneColors[j].y = Green;
+						CloneColors[j].z = Blue;
+
+						float UnitRadius = TemplatePoints[j].x;
+						float3 RealPos = TemplatePoints[j];
+						RealPos.x *= NNDist[1];
+						float3 RealPos1;
+
+						if( mFalloff < 0.0f )
+							CloneWidths[j] = ConstWidthPointer[0]*0.5f;
+						else
+							CloneWidths[j] = ConstWidthPointer[0]*powf(1.001f - UnitRadius,Falloff);
+
+						SphericalCoordToCartesianCoord(RealPos,RealPos1);
+						ClonePoints[j] = RealPos1;
 					}
-					CloneColors[j].x = Red;
-					CloneColors[j].y = Green;
-					CloneColors[j].z = Blue;
 					//// END
 
 					//// Inverse Distance Interpolation
@@ -389,20 +470,6 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 					//CloneColors[j].z *= 2.0f;
 					//// END
 
-
-
-					float UnitRadius = TemplatePoints[j].x;
-					float3 RealPos = TemplatePoints[j];
-					RealPos.x *= NNDist[1];
-					float3 RealPos1;
-
-					if( mFalloff < 0.0f )
-						CloneWidths[j] = ConstWidthPointer[0]*0.5f;
-					else
-						CloneWidths[j] = ConstWidthPointer[0]*powf(1.001f - UnitRadius,Falloff);
-
-					SphericalCoordToCartesianCoord(RealPos,RealPos1);
-					ClonePoints[j] = RealPos1;
 				}
 			}
 
@@ -438,4 +505,9 @@ void DiffusionParticleResolver::SetRandPattern(const RtInt& RandPattern)
 void DiffusionParticleResolver::SetSeed(const RtInt& Seed)
 {
 	mSeed = Seed;
+}
+
+void DiffusionParticleResolver::SetCoarseMode(const RtInt& CoarseMode)
+{
+	mCoarseMode = CoarseMode;
 }

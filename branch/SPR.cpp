@@ -89,25 +89,25 @@ static bool ReadFBX(const char* Path, RawModel& Model)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-PolygonParticleResolver::PolygonParticleResolver() : mSubdLevel(0)
+SurfaceParticleResolver::SurfaceParticleResolver() : mSubdLevel(0)
 {
 }
 
-PolygonParticleResolver::~PolygonParticleResolver()
+SurfaceParticleResolver::~SurfaceParticleResolver()
 {
 }
 
-void PolygonParticleResolver::SetPath(const char* Path)
+void SurfaceParticleResolver::SetPath(const char* Path)
 {
 	mPath = Path;
 }
 
-void PolygonParticleResolver::SetSubdLevel(const int& SubdLevel)
+void SurfaceParticleResolver::SetSubdLevel(const int& SubdLevel)
 {
 	mSubdLevel = SubdLevel;
 }
 
-RtVoid PolygonParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], RtPointer Data[])
+RtVoid SurfaceParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], RtPointer Data[])
 {
 	// The polygon model should be in object coordinate system.
 }
