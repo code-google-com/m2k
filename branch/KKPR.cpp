@@ -25,7 +25,7 @@
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "PR.h"
+#include "KKPR.h"
 #include "PRT.h"
 
 #include <iostream>
@@ -35,6 +35,7 @@
 #include <boost/scoped_array.hpp>
 
 using namespace std;
+using namespace PR;
 
 #define POSITION "Position"
 #define COLOR "Color"
@@ -115,7 +116,7 @@ RtVoid KKParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], RtPoint
 		Data2[2] = &ConstWidth;
 	}
 
-	boost::scoped_array<float3> Os( new float3[Count] );
+	boost::scoped_array<Float3> Os( new Float3[Count] );
 
 	itr = ChDict.find(OPACITY);
 	Tokens2[3] = "Os";

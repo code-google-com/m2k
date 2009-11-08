@@ -29,8 +29,12 @@
 #include <memory>
 
 #include "PR.h"
+#include "OPR.h"
+#include "DPR.h"
+#include "EPR.h"
 
 using namespace std;
+using namespace PR;
 
 #define PRTYPE "PRType"
 #define NCOPIES "NCopies"
@@ -40,6 +44,7 @@ using namespace std;
 #define PARAMETERS "Parameters"
 #define SEED "Seed"
 #define BOUND "Bound"
+#define VOLRES "VolRes"
 
 RifPlugin* RifPluginManufacture(int argc, char **argv)
 {
@@ -142,6 +147,9 @@ RtVoid ParticleResolverPlugin::AttributeV(RtToken Name, RtInt N, RtToken Tokens[
 				{
 					cerr<<"ParticleResolverPlugin : Only ExternalParticleResolver Use Attribute ["<<BOUND<<"]"<<endl;
 				}
+			}else if( strstr(Tokens[i],VOLRES) )
+			{
+
 			}
 		}
 	}

@@ -32,6 +32,8 @@
 #include <string>
 #include <RifPlugin.h>
 
+#define NAMESPACE_PR_BEGIN namespace PR {
+#define NAMESPACE_PR_END }
 
 /**
  * \mainpage PR
@@ -49,16 +51,18 @@
  * - "Diffusion" supports user defined random seed now.
  */
 
+NAMESPACE_PR_BEGIN
+
 /**
  * \brief Simple vector class
  * \warning there is already a class float3 in CUDA
  */
-struct float3
+struct Float3
 {
-	float3() : x(0.0f), y(0.0f), z(0.0f)
+	Float3() : x(0.0f), y(0.0f), z(0.0f)
 	{
 	}
-	~float3()
+	~Float3()
 	{
 	}
 	float x,y,z;
@@ -84,156 +88,6 @@ public:
 };
 
 /**
- * \brief "Origin"
- *
- * It calls RenderMan's internal RiPointsV function.
- */
-class OriginParticleResolver : public ParticleResolver
-{
-public:
-	OriginParticleResolver();
-	~OriginParticleResolver();
-
-	RtVoid DoIt(RtInt, RtInt, RtToken [], RtPointer []);
-};
-
-/**
- * \brief "Diffusion"
- *
- * This kind of ParticleResolver clones more points from orgin seed points according your parameters in RIB like following,
- * \code
- * Attribute "user" "uniform int PRType" [ 0 ]
- * Attribute "user" "uniform int NCopies" [ 256 ]
- * Attribute "user" "uniform int RandPattern" [2]
- * Attribute "user" "uniform float Falloff" [1.0]
- * \endcode
- * There are several attributes for this,
- * - \b PRType means which type of ParticleSolver you want to assign to current particle shape, "0" = OriginParticleResolver, "1" = DiffusionParticleResolver.
- * - \b NCopies means the count of cloned particles from one seed particle.
- * - \b RandPattern means different random generator would be used to generate the spherical points set, "0" = rand, "1" = drand48, "2" = sobol.
- * - \b Falloff means the width of cloned points in cluster will be falloff by an powf() function.
- */
-class DiffusionParticleResolver : public ParticleResolver
-{
-public:
-	DiffusionParticleResolver();
-	~DiffusionParticleResolver();
-
-	void SetFalloff(const RtFloat&);
-	void SetNCopies(const RtInt&);
-	void SetRandPattern(const RtInt&);
-	void SetSeed(const RtInt&);
-	void SetCoarseMode(const RtInt&);
-
-	/**
-	 * \todo
-	 * Current version use <a href="http://openmp.org/">OpenMP</a> to utilize your CPU as many as possible by \b omp_get_num_procs.
-	 * It's still slow because it performs k-nearest-neighbor lookup from each cloned point, we also could lookup at only seed position
-	 * to reuse the neighbors.
-	 */
-	RtVoid DoIt(RtInt, RtInt, RtToken [], RtPointer []);
-private:
-	RtFloat mFalloff;
-	RtInt mNCopies;
-	RtInt mRandPattern;
-	RtInt mSeed;
-	RtInt mCoarseMode;
-};
-
-/**
- * \brief "Surface"
- *
- * For polygon model we suggest <a href="http://usa.autodesk.com/adsk/servlet/pc/index?siteID=123112&id=6837478">FBX</a> now.
- * It will, 
- * - Apply(or not) subdivision on mesh.
- * - Sample primitives to generate a dense distribution to represent the geometry.
- */
-class SurfaceParticleResolver : public ParticleResolver
-{
-public:
-	SurfaceParticleResolver();
-	~SurfaceParticleResolver();
-	
-	void SetPath(const char*);
-	void SetSubdLevel(const int&);
-	
-	/**
-	 * \todo
-	 * Have not been implemented yet.
-	 */
-	RtVoid DoIt(RtInt, RtInt, RtToken [], RtPointer []);
-private:
-	int mSubdLevel;
-	std::string mPath;
-};
-
-/**
- * \brief "Volumetric"
- * 
- * It will
- * - Read an external point cloud.
- * - Convert into level set a
- * - Refine coarse point cloud.
- * 
- * Go to <a href="http://software.primefocusworld.com/software/support/krakatoa/render_geometry_volumes.php">CONVERTING GEOMETRY VOLUMES TO PARTICLE CLOUDS</a> for more details.
- */
-class VolumetricParticleSolver : public ParticleResolver
-{
-public:
-	VolumetricParticleSolver();
-	~VolumetricParticleSolver();
-	
-	/**
-	 * \todo
-	 * Have not been implemented yet.
-	 */
-	RtVoid DoIt(RtInt, RtInt, RtToken [], RtPointer []);
-};
-
-
-/**
- * \brief "External"
- *
- * It would load an external procedural primitive DSO to do more.
- */
-class ExternalParticleResolver : public ParticleResolver
-{
-public:
-	ExternalParticleResolver();
-	~ExternalParticleResolver();
-
-	void SetPath(const char*);
-	void SetBound(const RtBound&);
-	/**
-	 * \todo
-	 * Have not been implemented yet.
-	 */
-	RtVoid DoIt(RtInt, RtInt, RtToken [], RtPointer []);
-private:
-	std::string mPath;
-	RtBound mB;
-};
-
-/**
- * \brief "KK"
- * 
- * It would load an external <a href="http://software.primefocusworld.com/software/support/krakatoa/">Krakatoa</a> .PRT file and render it.
- */
-class KKParticleResolver : public ParticleResolver
-{
-public:
-	KKParticleResolver();
-	~KKParticleResolver();
-
-	void SetPath(const char*);
-	RtVoid DoIt(RtInt, RtInt, RtToken [], RtPointer []);
-private:
-	std::string mPath;
-};
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
  * \brief Instanced by RenderMan
  */
 class ParticleResolverPlugin : public RifPlugin
@@ -252,6 +106,6 @@ private:
 	RifFilter mRF;
 };
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////
+NAMESPACE_PR_END
 
 #endif

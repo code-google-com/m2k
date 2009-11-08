@@ -25,9 +25,11 @@
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "PR.h"
+#include "EPR.h"
 
 #include <ri.h>
+
+using namespace PR;
 
 ExternalParticleResolver::ExternalParticleResolver()
 {

@@ -50,10 +50,10 @@
 #include <sfcnn.hpp>
 #include <dpoint.hpp>
 
-#include "PR.h"
-
+#include "DPR.h"
 
 using namespace std;
+using namespace PR;
 
 #define POSITION "P"
 #define CONSTANTWIDTH "constantwidth"
@@ -80,7 +80,7 @@ inline float DegToRad(const float D)
 	return D * M_PI / 180.0;
 }
 
-void CubeToSphere(float3& P)
+void CubeToSphere(Float3& P)
 {
 	float Theta = P.x * M_PI * 2.0;
 	float U = P.y * 2.0f - 1.0f;
@@ -90,7 +90,7 @@ void CubeToSphere(float3& P)
 	P.z = U;
 }
 
-void CartesianCoordToSphericalCoord(const float3& XYZ, float3& RTP)
+void CartesianCoordToSphericalCoord(const Float3& XYZ, Float3& RTP)
 {
 	RTP.x = sqrtf( XYZ.x*XYZ.x + XYZ.y*XYZ.y + XYZ.z*XYZ.z );
 	if( XYZ.x > 0 )
@@ -112,7 +112,7 @@ void CartesianCoordToSphericalCoord(const float3& XYZ, float3& RTP)
 	RTP.z = acosf( XYZ.z/RTP.x );
 }
 
-void SphericalCoordToCartesianCoord(const float3& RTP, float3& XYZ)
+void SphericalCoordToCartesianCoord(const Float3& RTP, Float3& XYZ)
 {
 	XYZ.x = RTP.x * cosf(RTP.y) * sinf(RTP.z);
 	XYZ.y = RTP.x * sinf(RTP.y) * sinf(RTP.z);
@@ -121,11 +121,11 @@ void SphericalCoordToCartesianCoord(const float3& RTP, float3& XYZ)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-typedef boost::function3<void, const int, const int, float3*> DistFunc;
+typedef boost::function3<void, const int, const int, Float3*> DistFunc;
 
 struct DefaultRand
 {
-	void operator()(const int S, const int N, float3* P) const
+	void operator()(const int S, const int N, Float3* P) const
 	{
 		srand(S);
 		for( int i=0; i<N; ++i )
@@ -139,7 +139,7 @@ struct DefaultRand
 
 struct DRAND48Rand
 {
-	void operator()(const int S, const int N, float3* P) const
+	void operator()(const int S, const int N, Float3* P) const
 	{
 		gsl_rng* RNG = gsl_rng_alloc(gsl_rng_rand48);
 		gsl_rng_set(RNG,S);
@@ -155,7 +155,7 @@ struct DRAND48Rand
 
 struct SobolQRand
 {
-	void operator()(const int S, const int N, float3* P) const
+	void operator()(const int S, const int N, Float3* P) const
 	{
 		gsl_qrng* QRNG = gsl_qrng_alloc(gsl_qrng_sobol, 2);
 		double Result[2];
@@ -235,17 +235,17 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 
 	try
 	{
-		boost::scoped_array<float3> ClonePoints( new float3[NCopies] );
+		boost::scoped_array<Float3> ClonePoints( new Float3[NCopies] );
 		boost::scoped_array<float> CloneWidths( new float[NCopies] );
-		boost::scoped_array<float3> CloneColors( new float3[NCopies] );
-		boost::scoped_array<float3> CloneOpacities( new float3[NCopies] );
+		boost::scoped_array<Float3> CloneColors( new Float3[NCopies] );
+		boost::scoped_array<Float3> CloneOpacities( new Float3[NCopies] );
 
 		// Prepare the four inner particle attributes.
 		RtToken Tokens2[4] = {POSITION,"width",COLOR,OPACITY};
 		RtPointer Data2[4] = {ClonePoints.get(),CloneWidths.get(),CloneColors.get(),CloneOpacities.get()};
 
 		// Make a random points cluster
-		boost::scoped_array<float3> TemplatePoints( new float3[NCopies] );
+		boost::scoped_array<Float3> TemplatePoints( new Float3[NCopies] );
 		DistFunc DF;
 		switch( RandPattern )
 		{
@@ -280,7 +280,7 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 			for( i=0; i<NCopies; ++i )
 			{
 				// Varing P
-				float3 XYZ,RTP;
+				Float3 XYZ,RTP;
 				XYZ = TemplatePoints[i];
 				CubeToSphere(XYZ);
 				CartesianCoordToSphericalCoord(XYZ,RTP);
@@ -340,14 +340,14 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 		}
 
 		// Render them !
-		float3* SeedPosition = (float3*)PositionPointer;
+		Float3* SeedPosition = (Float3*)PositionPointer;
 
 		boost::progress_display Progress(NVerts);
 
 		boost::progress_timer Timer;
 		for( int i=0; i<NVerts; ++i )
 		{
-			const float3 CurrSeed = SeedPosition[i];
+			const Float3 CurrSeed = SeedPosition[i];
 
 			// Varying ATTRIBUTES ! 
 			// Color Only NOW !
@@ -359,7 +359,7 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 #pragma omp for private(j)
 				for( j=0; j<NCopies; ++j )
 				{
-					float3 LookupPos;
+					Float3 LookupPos;
 					SphericalCoordToCartesianCoord(TemplatePoints[j],LookupPos); 
 
 					LookupPos.x += CurrSeed.x;
@@ -393,10 +393,10 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 						CloneColors[j].y = Green / TotalWeight;
 						CloneColors[j].z = Blue / TotalWeight;
 
-						float3 RealPos = TemplatePoints[j];
+						Float3 RealPos = TemplatePoints[j];
 						float UnitRadius = TemplatePoints[j].x;
 						RealPos.x = UnitRadius*SeedNNDist[i*k+k-3]*1.5f;
-						float3 RealPos1;
+						Float3 RealPos1;
 
 						if( Falloff < 0.0f )
 							CloneWidths[j] = ConstWidthPointer[0]*0.1f;
@@ -434,9 +434,9 @@ RtVoid DiffusionParticleResolver::DoIt(RtInt NVerts, RtInt N, RtToken Tokens[], 
 						CloneColors[j].z = Blue;
 
 						float UnitRadius = TemplatePoints[j].x;
-						float3 RealPos = TemplatePoints[j];
+						Float3 RealPos = TemplatePoints[j];
 						RealPos.x *= NNDist[1];
-						float3 RealPos1;
+						Float3 RealPos1;
 
 						if( mFalloff < 0.0f )
 							CloneWidths[j] = ConstWidthPointer[0]*0.5f;

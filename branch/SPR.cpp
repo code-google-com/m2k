@@ -31,9 +31,10 @@
 
 #include <fbxsdk.h>
 
-#include "PR.h"
+#include "SPR.h"
 
 using namespace std;
+using namespace PR;
 
 class RawModel
 {
@@ -43,7 +44,7 @@ public:
 	}
 	size_t NF, NI, NV, NN;
 	boost::shared_array<unsigned int> F,I;
-	boost::shared_array<float3> V,N;
+	boost::shared_array<Float3> V,N;
 };
 
 /** \todo To deal with .obj and .fbx
