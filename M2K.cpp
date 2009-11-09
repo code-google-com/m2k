@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2009, Bo Zhou<http://jedimaster.cnblogs.com>
+﻿// Copyright (c) 2009, Bo Zhou<http://jedimaster.cnblogs.com>, Saber Jlassi<http://www.smallpixel.net/>
 // All rights reserved.
 // 
 // Redistribution and use in source and binary forms, with or without
