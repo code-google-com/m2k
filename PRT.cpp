@@ -26,6 +26,7 @@
 #include <boost/scoped_array.hpp>
 #include <iostream>
 #include <zlib.h>
+#include <OpenEXR/half.h>
 
 #include "PRT.h"
 
@@ -47,6 +48,26 @@ struct Channel
 	int Arity;
 	int Offset;
 };
+
+inline size_t GetDataLength(const DataType& DT)
+{
+	switch(DT)
+	{
+		case kFLOAT16:
+			return 2;
+			
+		case kINT32:
+		case kFLOAT32:
+		case kUINT32:
+			return 4;
+			
+		case kINT64:
+		case kFLOAT64:
+		case kUINT64:
+			return 8;
+	}
+	return 0;
+}
 
 void PRT::AddChannel(const std::string& Attr, const DataType DT, const int Arity, const Array& Data)
 {
@@ -102,11 +123,8 @@ bool PRT::SaveToFile(const char* Path)
 		{
 			const DataType CurrDT = itr->second.DT;
 			const int Arity = itr->second.Arity;
-
-			if( CurrDT == kINT32 || CurrDT == kFLOAT32 || CurrDT == kUINT32 )
-				SingleSize += 4*Arity;
-			else
-				SingleSize += 8*Arity;
+			
+			SingleSize += GetDataLength(CurrDT);
 		}
 		TotalSize = SingleSize*mCount;
 
@@ -121,13 +139,9 @@ bool PRT::SaveToFile(const char* Path)
 				const DataType CurrDT = itr->second.DT;
 				const int Arity = itr->second.Arity;
 				const char* p = itr->second.Data.get();
-				size_t Len = 0;
-
-				if( CurrDT == kINT32 || CurrDT == kFLOAT32 || CurrDT == kUINT32 )
-					Len = 4*Arity;
-				else
-					Len = 8*Arity;
-
+				
+				size_t Len = GetDataLength(CurrDT);
+				
 				memcpy( Cache.get() + Offset, p + i*Len, Len );
 
 				Offset += Len;
@@ -171,10 +185,8 @@ bool PRT::SaveToFile(const char* Path)
 			Ch.Offset = Offset;
 
 			const DataType CurrDT = itr->second.DT;
-			if( CurrDT == kINT32 || CurrDT == kFLOAT32 || CurrDT == kUINT32 )
-				Offset += 4*Ch.Arity;
-			else
-				Offset += 8*Ch.Arity;
+			
+			Offset += GetDataLength(CurrDT);
 
 			fwrite(&Ch,sizeof(Channel),1,FP);
 		}
@@ -198,7 +210,7 @@ bool PRT::ReadFromFile(const char * Path)
 	FILE* FP = fopen(Path,"rb");
 	if( FP == NULL )
 	{
-		cerr<<"e@fopen"<<endl;
+		cerr<<"ERROR : Can't open ["<<Path<<"]"<<endl;
 		return false;
 	}
 
@@ -239,25 +251,15 @@ bool PRT::ReadFromFile(const char * Path)
 		for( int i=0; i<ChDef[0]; ++i )
 		{
 			DataType CurrDT = (DataType)Channels[i].DataType;
-			if( CurrDT == kINT32 || CurrDT == kFLOAT32 || CurrDT == kUINT32 )
-			{
-				PRTChannel Ch;
-				Ch.Arity = Channels[i].Arity;
-				Ch.Data.reset(new char[H.Count*4*Ch.Arity]);
-				Ch.DT = CurrDT;
-				mCh.insert( make_pair(Channels[i].Name,Ch) );
-				SingleSize += 4*Ch.Arity;
-			}
-			else
-			{
-				PRTChannel Ch;
-				Ch.Arity = Channels[i].Arity;
-				Ch.Data.reset(new char[H.Count*8*Ch.Arity]);
-				Ch.DT = CurrDT;
-				mCh.insert( make_pair(Channels[i].Name,Ch) );
-
-				SingleSize += 8*Ch.Arity;
-			}
+			PRTChannel Ch;
+			size_t Len = GetDataLength(CurrDT);
+			
+			Ch.Arity = Channels[i].Arity;
+			Ch.Data.reset(new char[H.Count*Len*Ch.Arity]);
+			Ch.DT = CurrDT;
+			mCh.insert( make_pair(Channels[i].Name,Ch) );
+			SingleSize += Len*Ch.Arity;
+			
 		}
 
 		if( SingleSize == 0 )
@@ -289,12 +291,7 @@ bool PRT::ReadFromFile(const char * Path)
 		{
 			DataType CurrDT = (DataType)itr->second.DT;
 						
-			int Size = 0;
-
-			if( CurrDT == kINT32 || CurrDT == kFLOAT32 || CurrDT == kUINT32 )
-				Size = 4*itr->second.Arity;
-			else
-				Size = 8*itr->second.Arity;
+			int Size = GetDataLength(CurrDT)*itr->second.Arity;
 
 			AccOffset += mChIdx*Size;
 

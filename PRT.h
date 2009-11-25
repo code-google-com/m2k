@@ -35,6 +35,7 @@ enum DataType
 	kUNKNOWN,
 	kINT32 = 1,
 	kINT64 = 2,
+	kFLOAT16 = 3;
 	kFLOAT32 = 4,
 	kFLOAT64 = 5,
 	kUINT32 = 7,
@@ -66,7 +67,14 @@ public:
 	PRT(const long long Count = 0);
 	~PRT();
 	
+	/**
+	 * \todo Need to export FP32 data as FP16.
+	 */
 	bool SaveToFile(const char*);
+	
+	/**
+	 * \todo To read FP16 data.
+	 */
 	bool ReadFromFile(const char*);
 
 	void AddChannel(const std::string&, const DataType, const int, const Array&);
