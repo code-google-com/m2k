@@ -34,7 +34,7 @@ MayaLibPath = Dir('C:/Program Files (x86)/Autodesk/Maya2008/lib')
 ZLIBIncPath = Dir('E:/SDK/Inc')
 ZLIBLibPath = Dir('E:/SDK/Lib/X86')
 
-ZLIBLibTarget = 'zlib32'
+ZLIBLibTarget = 'libzlib'
 
 ######################################################
 
@@ -49,7 +49,7 @@ LibPath.append(ZLIBLibPath);
 
 ######################################################
 
-Libs = ['Foundation', 'OpenMaya', 'OpenMayaFX', ZLIBLibTarget]
+Libs = ['Foundation', 'OpenMaya', 'OpenMayaFX', 'libHalf', ZLIBLibTarget]
 
 SourceFiles = ['M2K.cpp','PRT.cpp']
 

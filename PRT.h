@@ -26,6 +26,7 @@
 #ifndef PRT_H
 #define PRT_H
 
+#include <OpenEXR/half.h>
 #include <boost/shared_array.hpp>
 #include <string>
 #include <map>
@@ -35,7 +36,7 @@ enum DataType
 	kUNKNOWN,
 	kINT32 = 1,
 	kINT64 = 2,
-	kFLOAT16 = 3;
+	kFLOAT16 = 3,
 	kFLOAT32 = 4,
 	kFLOAT64 = 5,
 	kUINT32 = 7,
