@@ -26,7 +26,6 @@
 #include <boost/scoped_array.hpp>
 #include <iostream>
 #include <zlib.h>
-#include <OpenEXR/half.h>
 
 #include "PRT.h"
 
