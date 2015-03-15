@@ -1,0 +1,2 @@
+` name type num ` if there is one attribute named **MyMagicColor**, its data type is float3, you should write ` MyMagicColor f 3 `. It's very easy.
+  * You could write your own GUI script to output the all data one frame by another frames.
